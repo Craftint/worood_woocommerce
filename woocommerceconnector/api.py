@@ -11,6 +11,7 @@ from .sync_customers import sync_customers
 from .sync_products import sync_products, update_item_stock_qty
 from .utils import disable_woocommerce_sync_on_exception, make_woocommerce_log
 from frappe.utils.background_jobs import enqueue
+from frappe.utils import add_to_date
 
 @frappe.whitelist()
 def check_hourly_sync():
@@ -18,6 +19,13 @@ def check_hourly_sync():
     if woocommerce_settings.hourly_sync == 1:
         sync_woocommerce()
 
+
+@frappe.whitelist()
+def datee():
+    order_list = frappe.get_list('Sales Order', pluck='name')
+    for order in order_list:
+        value = frappe.db.get_value('Sales Order', order, 'status')
+        print(value)
 @frappe.whitelist()
 def sync_woocommerce():
     """Enqueue longjob for syncing woocommerce"""
@@ -47,9 +55,16 @@ def sync_woocommerce_resources():
             frappe.local.form_dict.count_dict["customers"] = 0
             frappe.local.form_dict.count_dict["products"] = 0
             frappe.local.form_dict.count_dict["orders"] = 0
-            sync_products(woocommerce_settings.price_list, woocommerce_settings.warehouse, True if woocommerce_settings.sync_items_from_woocommerce_to_erp == 1 else False)
-            sync_customers()
-            sync_orders()
+            if woocommerce_settings.sync_items_from_woocommerce_to_erp:
+                sync_products(woocommerce_settings.price_list, woocommerce_settings.warehouse, True)
+                sync_customers()
+                sync_orders()
+            # sync_products(woocommerce_settings.price_list, woocommerce_settings.warehouse, True if woocommerce_settings.sync_items_from_woocommerce_to_erp == 1 else False)
+            # sync_customers()
+            # sync_orders()
+            else:
+                sync_customers()
+                sync_orders()
             # close_synced_woocommerce_orders() # DO NOT GLOBALLY CLOSE
             if woocommerce_settings.sync_item_qty_from_erpnext_to_woocommerce:
                 update_item_stock_qty()
@@ -114,3 +129,12 @@ def sync_woocommerce_ids():
     "Enqueue longjob for syncing woocommerce"
     enqueue("woocommerceconnector.sync_products.add_w_id_to_erp", queue='long', timeout=1500)
     frappe.msgprint(_("Queued for syncing. It may take a few minutes to an hour if this is your first sync."))
+
+
+
+
+@frappe.whitelist()
+def produits():
+    woocommerce_settings = frappe.get_doc("WooCommerce Config")
+    sync_products(woocommerce_settings.price_list, woocommerce_settings.warehouse, True)
+
